@@ -9,11 +9,14 @@ import static com.btb.chalKak.domain.member.type.MemberProvider.CHALKAK;
 
 import com.btb.chalKak.common.exception.MemberException;
 import com.btb.chalKak.common.security.JwtProvider;
+import com.btb.chalKak.common.security.customUser.CustomUserDetails;
+import com.btb.chalKak.common.security.customUser.CustomUserDetailsService;
 import com.btb.chalKak.common.security.dto.TokenDto;
 import com.btb.chalKak.common.security.entity.RefreshToken;
 import com.btb.chalKak.common.security.repository.RefreshTokenRepository;
 import com.btb.chalKak.common.security.request.TokenRequestDto;
 import com.btb.chalKak.domain.member.dto.request.SignInMemberRequest;
+import com.btb.chalKak.domain.member.dto.request.SignOutMemberRequest;
 import com.btb.chalKak.domain.member.dto.request.SignUpMemberRequest;
 import com.btb.chalKak.domain.member.dto.response.SignInMemberResponse;
 import com.btb.chalKak.domain.member.entity.Member;
@@ -24,9 +27,12 @@ import com.btb.chalKak.domain.styleTag.repository.StyleTagRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.servlet.http.HttpServletRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +43,7 @@ public class MemberServiceImpl implements MemberService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final CustomUserDetailsService customUserDetailsService;
 
     @Override
     @Transactional
@@ -118,13 +125,13 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional
     public TokenDto reissue(TokenRequestDto tokenRequestDto) {
+        String refreshToken = tokenRequestDto.getRefreshToken();
+        String accessToken = tokenRequestDto.getAccessToken();
+
         // 1. 만료된 refresh 토큰은 에러 발생
-        if(!jwtProvider.validateToken(tokenRequestDto.getRefreshToken())) {
-            throw new RuntimeException("CustomRefreshTokenException");
-        }
+        validateToken(refreshToken);
 
         // 2. accessToken에서 name 가져오기
-        String accessToken = tokenRequestDto.getAccessToken();
         Authentication authentication = jwtProvider.getAuthentication(accessToken);
 
         // 3. user pk로 유저 검색
@@ -132,19 +139,25 @@ public class MemberServiceImpl implements MemberService {
                 .orElseThrow(() -> new RuntimeException("CustomUserNotFoundException"));
 
         // 4. repository에 refresh token이 있는지 검사
-        RefreshToken refreshToken = refreshTokenRepository.findByMemberId(member.getId())
+        RefreshToken refreshTokenStoredInDB = refreshTokenRepository.findByMemberId(member.getId())
                 .orElseThrow(() -> new RuntimeException("CustomRefreshTokenException"));
         
         // 5. refresh 토큰 일치 검사
-        if(!refreshToken.getToken().equals(tokenRequestDto.getRefreshToken())){
+        if(!refreshTokenStoredInDB.getToken().equals(tokenRequestDto.getRefreshToken())){
             throw new RuntimeException("CustomRefreshTokenException");
         }
 
         TokenDto newToken = jwtProvider.createToken(member.getEmail(), member.getRole());
-        RefreshToken newRefreshToken = refreshToken.updateToken(newToken.getRefreshToken());
+        RefreshToken newRefreshToken = refreshTokenStoredInDB.updateToken(newToken.getRefreshToken());
         refreshTokenRepository.save(newRefreshToken);
 
         return newToken;
+    }
+
+    private void validateToken(String token) {
+        if(!jwtProvider.validateToken(token)) {
+            throw new RuntimeException("CustomExpiredTokenException");
+        }
     }
 
     private Member getMemberByEmail(String email){
@@ -158,11 +171,29 @@ public class MemberServiceImpl implements MemberService {
         }
     }
 
-    public Long findMemberId(String email){
-        Member member = memberRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("CustomMemberException"));
+    // 현재는 DB를 두 번 타는데, 더 좋은 방법?
+    @Override
+    @Transactional
+    public void signOut(HttpServletRequest servletRequest) {
 
-        return member.getId();
+        // 1. 토큰 추출
+        String accessToken = jwtProvider.resolveTokenFromRequest(servletRequest);
 
+        // 2. accessToken 검증
+        validateToken(accessToken);
+
+        // 3. accessToken에서 memberId 가져오기
+        String email = jwtProvider.getSubjectByToken(accessToken);
+        CustomUserDetails customUserDetails = (CustomUserDetails) customUserDetailsService.loadUserByUsername(email);
+        Member member = customUserDetails.getMember();
+
+        // 4. userId에 해당하는 user의 refreshToken을 확인하고, 있다면 삭제
+        RefreshToken refreshTokenStoredInDB =
+                refreshTokenRepository.findByMemberId(member.getId())
+                        .orElse(null);
+
+        if(refreshTokenStoredInDB != null){
+            refreshTokenRepository.deleteByMemberId(member.getId());
+        }
     }
 }

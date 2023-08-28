@@ -1,9 +1,6 @@
 package com.btb.chalKak.domain.member.controller;
 
-import static com.btb.chalKak.common.response.type.SuccessCode.SUCCESS_REISSUE;
-import static com.btb.chalKak.common.response.type.SuccessCode.SUCCESS_SAVE_MEMBER;
-import static com.btb.chalKak.common.response.type.SuccessCode.SUCCESS_SIGN_IN;
-
+import antlr.Token;
 import com.btb.chalKak.common.response.service.ResponseService;
 import com.btb.chalKak.common.security.dto.TokenDto;
 import com.btb.chalKak.common.security.request.TokenRequestDto;
@@ -12,15 +9,17 @@ import com.btb.chalKak.domain.member.dto.request.SignInMemberRequest;
 import com.btb.chalKak.domain.member.dto.request.SignUpMemberRequest;
 import com.btb.chalKak.domain.member.dto.response.SignInMemberResponse;
 import com.btb.chalKak.domain.member.service.MemberService;
+
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import static com.btb.chalKak.common.response.type.SuccessCode.*;
 
 @RequiredArgsConstructor
 @RestController
@@ -51,10 +50,18 @@ public class SignController {
         return ResponseEntity.ok(responseService.success(data, SUCCESS_SIGN_IN));
     }
 
+    // 사라질 수도 있는 api
     @PostMapping("/reissue")
     public ResponseEntity<?> reissue(@RequestBody TokenRequestDto tokenRequestDto){
         TokenDto data = memberService.reissue(tokenRequestDto);
         return ResponseEntity.ok(responseService.success(data, SUCCESS_REISSUE));
     }
+
+    @PutMapping("/signout")
+    public ResponseEntity<?> signOut(HttpServletRequest request) {
+        memberService.signOut(request);
+        return ResponseEntity.ok(responseService.successWithNoContent(SUCCESS_SIGN_OUT));
+    }
+
 
 }

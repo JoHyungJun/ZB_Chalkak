@@ -16,6 +16,7 @@ public enum SuccessCode {
     SUCCESS_SIGN_IN("로그인에 성공했습니다."),
     SUCCESS_REISSUE("토큰 재발급 성공"),
     SUCCESS_LOAD_WEATHER("날씨 조회에 성공했습니다."),
+    SUCCESS_SIGN_OUT("로그아웃에 성공했습니다."),
 
     // 댓글
 

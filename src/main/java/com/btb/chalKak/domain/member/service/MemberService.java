@@ -3,8 +3,11 @@ package com.btb.chalKak.domain.member.service;
 import com.btb.chalKak.common.security.dto.TokenDto;
 import com.btb.chalKak.common.security.request.TokenRequestDto;
 import com.btb.chalKak.domain.member.dto.request.SignInMemberRequest;
+import com.btb.chalKak.domain.member.dto.request.SignOutMemberRequest;
 import com.btb.chalKak.domain.member.dto.request.SignUpMemberRequest;
 import com.btb.chalKak.domain.member.dto.response.SignInMemberResponse;
+
+import javax.servlet.http.HttpServletRequest;
 
 public interface MemberService {
 
@@ -14,4 +17,6 @@ public interface MemberService {
     SignInMemberResponse SignIn(SignInMemberRequest request);
 
     TokenDto reissue(TokenRequestDto tokenRequestDto);
+
+    void signOut(HttpServletRequest servletRequest);
 }
