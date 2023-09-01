@@ -8,6 +8,7 @@ import com.btb.chalKak.domain.member.dto.request.SignUpMemberRequest;
 import com.btb.chalKak.domain.member.dto.response.SignInMemberResponse;
 import com.btb.chalKak.domain.member.dto.response.UserDetailsInfoResponse;
 import com.btb.chalKak.domain.member.dto.response.UserInfoResponse;
+import com.btb.chalKak.domain.member.dto.response.ValidateInfoRequest;
 import com.btb.chalKak.domain.member.entity.Member;
 import org.springframework.security.core.Authentication;
 
@@ -29,9 +30,9 @@ public interface MemberService {
 
     void signOut(HttpServletRequest request);
 
-    boolean validateEmail(String email);
+    ValidateInfoRequest validateEmail(String email);
 
-    boolean validateNickname(String nickname);
+    ValidateInfoRequest validateNickname(String nickname);
 
     UserDetailsInfoResponse userDetailsInfo(Long userId);
 
